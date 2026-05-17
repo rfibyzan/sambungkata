@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { Link } from 'react-router-dom';
+import CroppedAvatar from '../components/CroppedAvatar';
 
 interface LeaderboardEntry {
   user_id: string;
@@ -86,18 +87,13 @@ export default function LeaderboardPage() {
 
   // Helper to render public avatar images or fallbacks
   const renderAvatar = (entry: LeaderboardEntry, sizeClass: string = 'w-12 h-12') => {
-    if (entry.avatar_url) {
-      return (
-        <div className={`${sizeClass} rounded-full overflow-hidden border border-outline-variant/40 bg-surface shadow-sm`}>
-          <img src={entry.avatar_url} alt={entry.username} className="w-full h-full object-cover" />
-        </div>
-      );
-    }
-    const letter = (entry.username || 'P').charAt(0).toUpperCase();
     return (
-      <div className={`${sizeClass} rounded-full bg-gradient-to-tr from-primary to-surface-tint flex items-center justify-center font-bold text-on-primary shadow-sm border border-white/20 capitalize`}>
-        {letter}
-      </div>
+      <CroppedAvatar
+        src={entry.avatar_url}
+        alt={entry.username}
+        className={sizeClass}
+        fallbackLetter={entry.username}
+      />
     );
   };
 
@@ -228,7 +224,7 @@ export default function LeaderboardPage() {
             {/* Header */}
             <div className="flex items-center px-md py-3.5 border-b border-outline-variant bg-surface-container-low">
               <div className="w-20 text-center font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-wider">Peringkat</div>
-              <div className="flex-grow font-label-md text-label-md text-on-surface-variant px-sm font-bold uppercase tracking-wider">Pemain</div>
+              <div className="grow font-label-md text-label-md text-on-surface-variant px-sm font-bold uppercase tracking-wider">Pemain</div>
               <div className="w-24 text-right font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-wider">Skor Tertinggi</div>
             </div>
 
@@ -244,7 +240,7 @@ export default function LeaderboardPage() {
                   return (
                     <div key={entry.user_id} className="flex items-center px-md py-3 hover:bg-surface-container-low/50 transition-colors">
                       <div className="w-20 text-center font-title-md text-title-md text-on-surface-variant font-semibold">{rank}</div>
-                      <div className="flex-grow flex items-center gap-sm px-sm">
+                      <div className="grow flex items-center gap-sm px-sm">
                         {renderAvatar(entry, 'w-9 h-9')}
                         <span className="font-body-md text-body-md text-on-surface capitalize font-medium">{entry.username}</span>
                       </div>
@@ -262,7 +258,7 @@ export default function LeaderboardPage() {
               myRank ? (
                 <div className="bg-primary-container text-on-primary-container rounded-2xl shadow-xl border-2 border-primary overflow-hidden flex items-center px-md py-4 transition-all hover:scale-[1.01] duration-300">
                   <div className="w-20 text-center font-headline-lg-mobile text-[24px] font-bold">#{myRank}</div>
-                  <div className="flex-grow flex items-center gap-sm px-sm">
+                  <div className="grow flex items-center gap-sm px-sm">
                     {renderAvatar({ user_id: user.id, username: profile?.username || 'Saya', avatar_url: profile?.avatar_url || '', score: myBestScore }, 'w-11 h-11 border-2 border-white/40')}
                     <div className="flex flex-col">
                       <span className="font-label-lg text-label-lg font-bold">Peringkat Anda</span>
@@ -284,7 +280,7 @@ export default function LeaderboardPage() {
                   </div>
                   <Link 
                     to="/game"
-                    className="bg-primary text-on-primary font-label-md px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-sm cursor-pointer border-b-[3px] border-[#003ea8] active:border-b-0 active:translate-y-[3px]"
+                    className="bg-primary text-on-primary font-label-md px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-sm cursor-pointer border-b-[3px] border-on-primary-fixed-variant active:border-b-0 active:translate-y-[3px]"
                   >
                     Main Sekarang
                   </Link>
@@ -301,7 +297,7 @@ export default function LeaderboardPage() {
                 </div>
                 <Link 
                   to="/auth"
-                  className="bg-primary text-on-primary font-label-md px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-sm cursor-pointer border-b-[3px] border-[#003ea8] active:border-b-0 active:translate-y-[3px]"
+                  className="bg-primary text-on-primary font-label-md px-6 py-2.5 rounded-xl hover:bg-primary/95 transition-all shadow-sm cursor-pointer border-b-[3px] border-on-primary-fixed-variant active:border-b-0 active:translate-y-[3px]"
                 >
                   Masuk / Daftar
                 </Link>

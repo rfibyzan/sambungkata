@@ -20,7 +20,7 @@ function App() {
         <TopNavbar />
 
         {/* Main Content Area */}
-        <main className="flex-grow w-full min-h-[calc(100vh-128px)] md:min-h-[calc(100vh-64px)] flex flex-col items-center">
+        <main className="grow w-full min-h-[calc(100vh-128px)] md:min-h-[calc(100vh-64px)] flex flex-col items-center">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/game" element={<GamePage />} />

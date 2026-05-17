@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
-    <footer className="bg-surface-container-lowest border-t border-outline-variant/60 w-full mt-auto mb-[64px] md:mb-0 pt-xl pb-lg transition-all duration-300">
+    <footer className="bg-surface-container-lowest border-t border-outline-variant/60 w-full mt-auto mb-xl md:mb-0 pt-xl pb-lg transition-all duration-300">
       <div className="w-full px-4 md:px-8 mx-auto grid grid-cols-1 md:grid-cols-12 gap-xl">
         
         {/* Column 1: Brand Info & Badges */}

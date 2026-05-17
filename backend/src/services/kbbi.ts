@@ -2,6 +2,11 @@ import { supabase } from '../config/supabase';
 import { aiModel } from '../config/gemini';
 
 export const validateWordInKBBI = async (word: string): Promise<boolean> => {
+  // Instantly reject if the input contains spaces (phrases/sentences are not valid dictionary entries)
+  if (/\s/.test(word.trim())) {
+    return false;
+  }
+
   const lowercaseWord = word.toLowerCase();
 
   try {
@@ -24,7 +29,7 @@ export const validateWordInKBBI = async (word: string): Promise<boolean> => {
     try {
       const response = await fetch(`https://kateglo.com/api.php?format=json&phrase=${lowercaseWord}`);
       const textResponse = await response.text();
-      
+
       // Check if response is actually JSON and not HTML (Kateglo might return HTML errors)
       if (response.ok && textResponse.startsWith('{')) {
         const data = JSON.parse(textResponse);
@@ -48,11 +53,11 @@ export const validateWordInKBBI = async (word: string): Promise<boolean> => {
         // Extract JSON using regex to handle variations of markdown block
         const jsonMatch = aiText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            aiText = jsonMatch[0];
+          aiText = jsonMatch[0];
         }
-        
+
         const aiData = JSON.parse(aiText);
-        
+
         if (aiData && aiData.valid === true) {
           isValid = true;
           lexClass = aiData.tipe || 'Kata';
@@ -66,33 +71,24 @@ export const validateWordInKBBI = async (word: string): Promise<boolean> => {
 
     if (!isValid) return false;
 
-    // 4. Generate Example Sentence using Gemini AI
-    let exampleUsage = '';
-    try {
-      const prompt = `Buatkan 1 kalimat pendek dan natural dalam bahasa Indonesia menggunakan kata "${lowercaseWord}" (makna: ${meaning}). Cukup balas dengan kalimatnya saja tanpa tanda kutip.`;
-      const result = await aiModel.generateContent(prompt);
-      exampleUsage = result.response.text().trim();
-    } catch (aiError) {
-      console.error('Failed to generate sentence with AI:', aiError);
-      exampleUsage = 'Contoh kalimat tidak tersedia.'; // Fallback if AI fails
-    }
+    // 4. Save to Supabase immediately with empty example_usage (Caching word definition)
+    const { error: insertError } = await supabase
+      .from('dictionary')
+      .insert({
+        word: lowercaseWord,
+        word_type: lexClass,
+        meaning: meaning,
+        example_usage: '' // Empty first, will be updated in background
+      });
 
-    // 5. Save to Supabase for future use
-    if (exampleUsage) {
-      const { error: insertError } = await supabase
-        .from('dictionary')
-        .insert({
-          word: lowercaseWord,
-          word_type: lexClass,
-          meaning: meaning,
-          example_usage: exampleUsage
-        });
-        
-      if (insertError) {
-        console.error('Failed to cache word in Supabase:', insertError);
-      } else {
-        console.log(`Saved new word to dictionary: ${lowercaseWord}`);
-      }
+    if (insertError) {
+      console.error('Failed to cache word in Supabase:', insertError.message);
+    } else {
+      console.log(`Cached new word in Supabase (definitions only): ${lowercaseWord}`);
+
+      // 5. Trigger AI Example Generation in the background asynchronously!
+      // This will NOT block the return statement, returning true instantly.
+      generateAndSaveExampleInBackground(lowercaseWord, meaning);
     }
 
     return true;
@@ -101,3 +97,28 @@ export const validateWordInKBBI = async (word: string): Promise<boolean> => {
     return false;
   }
 };
+
+// Helper function to generate example sentence in the background
+async function generateAndSaveExampleInBackground(word: string, meaning: string) {
+  try {
+    console.log(`[Background] Generating AI sentence for: ${word}`);
+    const prompt = `Buatkan 1 kalimat pendek, sederhana, dan natural dalam bahasa Indonesia menggunakan kata "${word}" (makna: ${meaning}). Cukup balas dengan kalimatnya saja tanpa tanda kutip.`;
+    const result = await aiModel.generateContent(prompt);
+    const exampleUsage = result.response.text().trim();
+
+    if (exampleUsage) {
+      const { error: updateError } = await supabase
+        .from('dictionary')
+        .update({ example_usage: exampleUsage })
+        .eq('word', word);
+
+      if (updateError) {
+        console.error(`[Background] Failed to save example sentence for "${word}":`, updateError.message);
+      } else {
+        console.log(`[Background] Saved example sentence for "${word}": "${exampleUsage}"`);
+      }
+    }
+  } catch (error) {
+    console.error(`[Background] Error generating sentence for "${word}":`, error);
+  }
+}

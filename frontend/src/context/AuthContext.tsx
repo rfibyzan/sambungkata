@@ -6,6 +6,7 @@ import { supabase } from '../config/supabase';
 interface ProfileType {
   username: string;
   avatar_url: string;
+  email: string;
 }
 
 interface AuthContextType {
@@ -38,13 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('username, avatar_url')
+        .select('username, avatar_url, email')
         .eq('id', userId)
         .single();
       if (!error && data) {
         setProfile({
           username: data.username || '',
           avatar_url: data.avatar_url || '',
+          email: data.email || '',
         });
       } else {
         setProfile(null);

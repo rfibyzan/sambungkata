@@ -51,6 +51,9 @@ CREATE POLICY "Users can update their own profile." ON public.users FOR UPDATE U
 CREATE POLICY "Users can view their own game sessions." ON public.game_sessions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert their own game sessions." ON public.game_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Users can view game words." ON public.game_words FOR SELECT USING (true);
+CREATE POLICY "Users can insert game words." ON public.game_words FOR INSERT WITH CHECK (true);
+
 CREATE POLICY "Leaderboard is viewable by everyone." ON public.leaderboard FOR SELECT USING (true);
 CREATE POLICY "Users can insert their own leaderboard entries." ON public.leaderboard FOR INSERT WITH CHECK (auth.uid() = user_id);
 

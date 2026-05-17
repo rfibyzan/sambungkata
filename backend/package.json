@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
+    "generate-sentences": "ts-node src/generate-with-gemini-batch.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

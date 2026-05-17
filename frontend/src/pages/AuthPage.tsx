@@ -75,7 +75,7 @@ export default function AuthPage() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-md items-stretch mt-lg">
         
         {/* Left Column: Visual Perks & Graphics (Desktop Only) */}
-        <div className="hidden md:flex md:col-span-5 bg-gradient-to-br from-primary to-surface-tint text-on-primary rounded-2xl p-lg flex-col justify-between shadow-lg relative overflow-hidden border border-primary/20 min-h-[500px]">
+        <div className="hidden md:flex md:col-span-5 bg-linear-to-br from-primary to-surface-tint text-on-primary rounded-2xl p-lg flex-col justify-between shadow-lg relative overflow-hidden border border-primary/20 min-h-[500px]">
           {/* Aesthetic Decorative Background Pattern */}
           <div className="absolute inset-0 opacity-10 pointer-events-none select-none">
             <div className="absolute top-10 left-10 text-[64px] font-bold">A</div>
@@ -195,7 +195,7 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-4 bg-primary hover:bg-[#003ea8] text-on-primary font-title-md text-title-md py-3 rounded-xl border-b-4 border-[#003ea8] active:border-b-0 active:translate-y-[4px] disabled:shadow-none disabled:active:translate-y-0 transition-all flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full mt-4 bg-primary hover:bg-on-primary-fixed-variant text-on-primary font-title-md text-title-md py-3 rounded-xl border-b-4 border-on-primary-fixed-variant active:border-b-0 active:translate-y-xs disabled:shadow-none disabled:active:translate-y-0 transition-all flex justify-center items-center gap-2 shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <span className="material-symbols-outlined animate-spin">progress_activity</span>

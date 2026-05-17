@@ -30,18 +30,18 @@ export function TopNavbar() {
             <NavLink to="/dictionary" className={({ isActive }) => isActive ? desktopNavActive : desktopNavInactive}>Dictionary</NavLink>
             <NavLink to="/leaderboard" className={({ isActive }) => isActive ? desktopNavActive : desktopNavInactive}>Leaderboard</NavLink>
           </nav>
-          
+
           {/* Profile Picture Link */}
           <div className="flex items-center text-primary border-l border-outline-variant/60 pl-md md:pl-lg">
-            <Link 
-              to={user ? "/profile" : "/auth"} 
-              aria-label="Account" 
+            <Link
+              to={user ? "/profile" : "/auth"}
+              aria-label="Account"
               className="hover:bg-surface-container-low p-1.5 rounded-full transition-colors flex items-center justify-center shrink-0"
             >
               {profile?.avatar_url ? (
-                <img 
-                  src={profile.avatar_url} 
-                  alt="Profile" 
+                <img
+                  src={profile.avatar_url}
+                  alt="Profile"
                   className="w-[32px] h-[32px] rounded-full object-cover shadow-sm border border-primary/20 hover:scale-105 transition-transform"
                 />
               ) : (
@@ -78,10 +78,10 @@ export function BottomNavbar() {
       </NavLink>
       <NavLink to="/profile" className={({ isActive }) => isActive ? mobileNavActive : mobileNavInactive}>
         {profile?.avatar_url ? (
-          <img 
-            src={profile.avatar_url} 
-            alt="Profile" 
-            className="w-[24px] h-[24px] rounded-full object-cover shadow-sm border border-primary/20"
+          <img
+            src={profile.avatar_url}
+            alt="Profile"
+            className="w-md h-md rounded-full object-cover shadow-sm border border-primary/20"
           />
         ) : (
           <span className="material-symbols-outlined">account_circle</span>

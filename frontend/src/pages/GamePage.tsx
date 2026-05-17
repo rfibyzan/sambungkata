@@ -4,12 +4,112 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../config/supabase';
 import { useNavigate } from 'react-router-dom';
 
+// Web Audio API Synthesizers for Arcade-grade SFX (Zero Network/Asset Latency)
+const playSuccessSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Premium C-Major arpeggio (C5 -> E5 -> G5 -> C6) for high-satisfaction correct chime
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + index * 0.07);
+
+      gainNode.gain.setValueAtTime(0.12, now + index * 0.07);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + index * 0.07 + 0.25);
+
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc.start(now + index * 0.07);
+      osc.stop(now + index * 0.07 + 0.3);
+    });
+  } catch (e) {
+    console.warn('Web Audio API success sound failed to play:', e);
+  }
+};
+
+const playErrorSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Quick double-blip downward buzz for clear, non-abrasive error signal
+    const times = [0, 0.12];
+    times.forEach((startTime) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now + startTime);
+      osc.frequency.exponentialRampToValueAtTime(90, now + startTime + 0.08);
+
+      gainNode.gain.setValueAtTime(0.18, now + startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + startTime + 0.08);
+
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc.start(now + startTime);
+      osc.stop(now + startTime + 0.1);
+    });
+  } catch (e) {
+    console.warn('Web Audio API error sound failed to play:', e);
+  }
+};
+
+const playGameOverSound = () => {
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    // Classic dramatic downward retro minor chords (C5 -> Ab4 -> G4 -> C4) with full robust volume
+    const notes = [523.25, 415.30, 392.00, 261.63];
+
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = 'sawtooth'; // Retro arcade synth sawtooth wave
+      osc.frequency.setValueAtTime(freq, now + index * 0.15);
+
+      // Harmonized with success sound volume level (0.12 gain)
+      gainNode.gain.setValueAtTime(0.12, now + index * 0.15);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + index * 0.15 + 0.5);
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1000, now);
+
+      osc.connect(filter);
+      filter.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc.start(now + index * 0.15);
+      osc.stop(now + index * 0.15 + 0.6);
+    });
+  } catch (e) {
+    console.warn('Web Audio API game over sound failed to play:', e);
+  }
+};
+
 export default function GamePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [words, setWords] = useState<string[]>([]);
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(45);
+  const [timeLeft, setTimeLeft] = useState(20);
   const [gameOver, setGameOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -83,17 +183,17 @@ export default function GamePage() {
     if (words.length > 0 && !gameOver) {
       // Push initial dummy state to enable popstate capture
       window.history.pushState(null, '', window.location.href);
-      
+
       const handlePopState = () => {
         if (isLeavingRef.current) return;
-        
+
         setIsConfirmModalOpen(true);
         setPendingHref('BACK_BUTTON');
-        
+
         // Re-push a dummy state to keep the block active!
         window.history.pushState(null, '', window.location.href);
       };
-      
+
       window.addEventListener('popstate', handlePopState);
       return () => {
         window.removeEventListener('popstate', handlePopState);
@@ -104,7 +204,7 @@ export default function GamePage() {
   const confirmLeave = () => {
     isLeavingRef.current = true;
     setIsConfirmModalOpen(false);
-    
+
     if (pendingHref === 'BACK_BUTTON') {
       // Go back twice (once for popstate dummy, once for original back)
       window.history.go(-2);
@@ -115,13 +215,17 @@ export default function GamePage() {
 
   useEffect(() => {
     if (words.length > 0 && !gameOver) {
-      setTimeLeft(45);
+      // Dynamic turn time limit: starts at 20 seconds, decreases by 1 second for each word, down to a minimum of 5 seconds
+      const dynamicLimit = Math.max(5, 20 - (words.length - 1));
+      setTimeLeft(dynamicLimit);
+
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
             clearInterval(timerRef.current!);
             setGameOver(true);
+            playGameOverSound();
             return 0;
           }
           return prev - 1;
@@ -143,21 +247,41 @@ export default function GamePage() {
     if (gameOver && user && score > 0 && !hasSavedScore) {
       const saveSession = async () => {
         try {
-          // 1. Save to game_sessions
-          const { error: sessionError } = await supabase
+          // 1. Save to game_sessions and retrieve the session ID
+          const { data: sessionData, error: sessionError } = await supabase
             .from('game_sessions')
             .insert({
               user_id: user.id,
               score: score,
               word_count: words.length,
               mode: 'singleplayer',
-            });
-          
+            })
+            .select();
+
           if (sessionError) {
             console.error("Gagal menyimpan sesi game:", sessionError);
+          } else if (sessionData && sessionData.length > 0) {
+            const sessionId = sessionData[0].id;
+
+            // 2. Save all played words into game_words table for history tracking
+            const wordsToInsert = words.map((w, index) => ({
+              session_id: sessionId,
+              word: w,
+              order_index: index,
+            }));
+
+            const { error: wordsError } = await supabase
+              .from('game_words')
+              .insert(wordsToInsert);
+
+            if (wordsError) {
+              console.error("Gagal menyimpan riwayat kata ke game_words:", wordsError.message);
+            } else {
+              console.log("Riwayat kata berhasil disimpan ke game_words!");
+            }
           }
 
-          // 2. Save to leaderboard
+          // 3. Save to leaderboard
           const { error: leaderboardError } = await supabase
             .from('leaderboard')
             .insert({
@@ -165,7 +289,7 @@ export default function GamePage() {
               score: score,
               mode: 'singleplayer',
             });
-            
+
           if (leaderboardError) {
             console.error("Gagal menyimpan skor leaderboard:", leaderboardError);
           }
@@ -201,7 +325,7 @@ export default function GamePage() {
   const handleWordSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (gameOver || isLoading) return;
-    
+
     const typedWord = inputValue.toLowerCase().trim();
     if (!typedWord) return;
 
@@ -222,6 +346,7 @@ export default function GamePage() {
     if (words.includes(fullWord)) {
       setErrorMsg('Kata sudah digunakan!');
       triggerShake();
+      playErrorSound();
       return;
     }
 
@@ -234,7 +359,7 @@ export default function GamePage() {
         body: JSON.stringify({ word: fullWord })
       });
       const data = await res.json();
-      
+
       if (data.valid) {
         const points = fullWord.length * 10 + timeLeft;
         setWords([...words, data.word]);
@@ -246,15 +371,18 @@ export default function GamePage() {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
         setCurrentPrefixLength(data.suggestedPrefixLength || 2);
+        playSuccessSound();
       } else {
         setErrorMsg('Kata tidak valid di KBBI!');
         triggerShake();
+        playGameOverSound();
         setGameOver(true);
         if (timerRef.current) clearInterval(timerRef.current);
       }
     } catch (err) {
       setErrorMsg('Gagal memvalidasi kata. Server error?');
       triggerShake();
+      playErrorSound();
     } finally {
       setIsLoading(false);
     }
@@ -290,7 +418,7 @@ export default function GamePage() {
   const handleRestart = () => {
     setWords([]);
     setScore(0);
-    setTimeLeft(45);
+    setTimeLeft(20);
     setGameOver(false);
     setErrorMsg('');
     setInputValue('');
@@ -330,16 +458,14 @@ export default function GamePage() {
     <div className="w-full max-w-max-width-content mx-auto px-margin-mobile md:px-margin-desktop py-md md:py-lg">
       {!hasStarted ? (
         <div className="w-full max-w-[480px] mx-auto bg-surface-container-low border border-outline-variant rounded-2xl p-sm sm:p-md md:p-lg shadow-lg relative flex flex-col items-center text-center gap-xs sm:gap-sm md:gap-md my-1 sm:my-3 md:my-6 animate-spring-card">
-          <div className="w-12 h-12 md:w-16 md:h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center shadow-md animate-bounce duration-1000">
-            <span className="material-symbols-outlined text-[26px] md:text-[36px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>sports_esports</span>
-          </div>
+
           <div className="animate-hero-intro" style={{ animationDelay: '100ms' }}>
             <h2 className="text-lg sm:text-xl md:text-2xl text-primary font-bold">Mulai SambungKata</h2>
             <p className="font-body-md text-[11px] sm:text-xs md:text-sm text-on-surface-variant mt-0.5 max-w-[400px] leading-relaxed">
               Platform permainan kata berantai yang menantang! Sistem akan memilih kata awal secara acak dari KBBI untuk Anda lanjutkan.
             </p>
           </div>
-          
+
           <div className="bg-surface-container rounded-xl p-2 sm:p-3 w-full text-left border border-outline-variant/40 flex flex-col gap-1 animate-hero-intro" style={{ animationDelay: '200ms' }}>
             <h4 className="font-title-sm text-[11px] sm:text-xs md:text-sm text-on-surface font-bold flex items-center gap-1">
               <span className="material-symbols-outlined text-primary text-[16px] sm:text-[18px]">info</span>
@@ -348,12 +474,12 @@ export default function GamePage() {
             <ul className="list-disc list-inside space-y-0.5 font-body-sm text-[10px] sm:text-[11px] md:text-xs text-on-surface-variant leading-relaxed">
               <li>Sistem menyajikan kata awal (misal: <strong className="text-primary font-bold">Aksa<span className="text-secondary-container">ra</span></strong>).</li>
               <li>Tulis kata baru dari suku kata terakhir (misal: <strong className="text-primary font-bold"><span className="text-secondary-container">Ra</span>mi</strong>).</li>
-              <li>Waktu menjawab adalah <strong className="text-secondary-container font-bold">45 detik</strong> per kata.</li>
+              <li>Waktu awal menjawab adalah <strong className="text-secondary-container font-bold">20 detik</strong>, berkurang seiring jalannya game (minimal 5 detik!).</li>
               <li>Dapatkan skor tertinggi untuk puncaki Papan Peringkat!</li>
             </ul>
           </div>
 
-          <button 
+          <button
             type="button"
             onClick={handleStartGame}
             style={{ animationDelay: '300ms' }}
@@ -365,199 +491,193 @@ export default function GamePage() {
         </div>
       ) : (
         <>
-      
-      {/* Game Status Bar */}
-      <div 
-        style={{ animationDelay: '50ms' }}
-        className="flex justify-between items-center bg-surface-container-low rounded-xl p-md shadow-sm mb-lg animate-hero-intro"
-      >
-        <div className="flex items-center gap-sm">
-          <div className={`rounded-full p-2 flex items-center justify-center ${timeLeft <= 10 ? 'bg-error text-on-error animate-pulse' : 'bg-primary text-on-primary'}`}>
-            <span className="material-symbols-outlined">timer</span>
-          </div>
-          <div>
-            <div className="font-label-sm text-label-sm text-on-surface-variant">Time Remaining</div>
-            <div className={`font-headline-lg-mobile text-headline-lg-mobile ${timeLeft <= 10 ? 'text-error' : 'text-primary'}`}>
-              {formatTime(timeLeft)}
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-sm text-right">
-          <div>
-            <div className="font-label-sm text-label-sm text-on-surface-variant">Current Score</div>
-            <div className="font-headline-lg-mobile text-headline-lg-mobile text-secondary-container">
-              {score.toLocaleString()}
-            </div>
-          </div>
-          <div className="bg-secondary-container text-on-secondary-container rounded-full p-2 flex items-center justify-center">
-            <span className="material-symbols-outlined">star</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Game Area Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
-        
-        {/* Left Column: Word Chain History */}
-        <div 
-          style={{ animationDelay: '150ms' }}
-          className="md:col-span-1 bg-surface rounded-xl shadow-sm border border-outline-variant p-md flex flex-col h-[260px] md:h-[430px] animate-bento-card"
-        >
-          <h2 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">history</span> Word Chain
-          </h2>
-          <div className="flex-grow overflow-y-auto pr-2 space-y-sm">
-            {words.length === 0 && (
-              <div className="text-center text-outline text-sm mt-8">Belum ada kata.</div>
-            )}
-            {words.map((w, i) => {
-              const isLast = i === words.length - 1;
-              // Approximate points for visual history
-              const pts = w.length * 10 + 20; 
-              return (
-                <div key={i} className={isLast ? "animate-in fade-in slide-in-from-top-3 duration-300" : ""}>
-                  <div 
-                    className={`px-4 py-2 rounded-lg flex justify-between items-center ${
-                      isLast 
-                        ? 'bg-primary-container text-on-primary-container font-bold shadow-sm' 
-                        : 'bg-surface-container text-on-surface'
-                    }`}
-                    style={{ opacity: isLast ? 1 : Math.max(0.4, 1 - (words.length - 1 - i) * 0.15) }}
-                  >
-                    <span className="font-body-md text-body-md capitalize">{w}</span>
-                    <span className="font-label-sm text-label-sm text-primary">+{pts}</span>
-                  </div>
-                  {!isLast && (
-                    <div className="flex justify-center text-outline my-1">
-                      <span className="material-symbols-outlined text-sm">arrow_downward</span>
+          {/* Game Status Bar */}
+          <div
+            style={{ animationDelay: '50ms' }}
+            className="flex justify-between items-center bg-surface-container-low rounded-xl p-md shadow-sm mb-lg animate-hero-intro"
+          >
+            <div className="flex items-center gap-sm">
+              <div className={`rounded-full p-2 flex items-center justify-center ${timeLeft <= 10 ? 'bg-error text-on-error animate-pulse' : 'bg-primary text-on-primary'}`}>
+                <span className="material-symbols-outlined">timer</span>
+              </div>
+              <div>
+                <div className="font-label-sm text-label-sm text-on-surface-variant">Time Remaining</div>
+                <div className={`font-headline-lg-mobile text-headline-lg-mobile ${timeLeft <= 10 ? 'text-error' : 'text-primary'}`}>
+                  {formatTime(timeLeft)}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-sm text-right">
+              <div>
+                <div className="font-label-sm text-label-sm text-on-surface-variant">Current Score</div>
+                <div className="font-headline-lg-mobile text-headline-lg-mobile text-secondary-container">
+                  {score.toLocaleString()}
+                </div>
+              </div>
+              <div className="bg-secondary-container text-on-secondary-container rounded-full p-2 flex items-center justify-center">
+                <span className="material-symbols-outlined">star</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Game Area Bento Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+
+            {/* Left Column: Word Chain History */}
+            <div
+              style={{ animationDelay: '150ms' }}
+              className="md:col-span-1 bg-surface rounded-xl shadow-sm border border-outline-variant p-md flex flex-col h-[260px] md:h-[430px] animate-bento-card"
+            >
+              <h2 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">history</span> Word Chain
+              </h2>
+              <div className="grow overflow-y-auto pr-2 space-y-sm">
+                {words.length === 0 && (
+                  <div className="text-center text-outline text-sm mt-8">Belum ada kata.</div>
+                )}
+                {words.map((w, i) => {
+                  const isLast = i === words.length - 1;
+                  // Approximate points for visual history
+                  const pts = w.length * 10 + 20;
+                  return (
+                    <div key={i} className={isLast ? "animate-in fade-in slide-in-from-top-3 duration-300" : ""}>
+                      <div
+                        className={`px-4 py-2 rounded-lg flex justify-between items-center ${isLast
+                          ? 'bg-primary-container text-on-primary-container font-bold shadow-sm'
+                          : 'bg-surface-container text-on-surface'
+                          }`}
+                        style={{ opacity: isLast ? 1 : Math.max(0.4, 1 - (words.length - 1 - i) * 0.15) }}
+                      >
+                        <span className="font-body-md text-body-md capitalize">{w}</span>
+                        <span className="font-label-sm text-label-sm text-primary">+{pts}</span>
+                      </div>
+                      {!isLast && (
+                        <div className="flex justify-center text-outline my-1">
+                          <span className="material-symbols-outlined text-sm">arrow_downward</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Column: Active Play Area */}
-        <div 
-          style={{ animationDelay: '250ms' }}
-          className="md:col-span-2 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant p-md md:p-lg flex flex-col justify-center relative overflow-hidden h-[300px] md:h-[430px] animate-bento-card"
-        >
-          
-          {/* Feedback Toast */}
-          {showToast && !gameOver && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-tertiary-container text-on-tertiary-container px-md py-sm rounded-full shadow-md flex items-center gap-2 z-10 animate-in slide-in-from-top-4 fade-in duration-300">
-              <span className="material-symbols-outlined">check_circle</span>
-              <span className="font-label-md text-label-md">Great word! +{lastPoints} points</span>
-            </div>
-          )}
-
-          {errorMsg && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-error text-on-error px-md py-sm rounded-full shadow-md flex items-center gap-2 z-10 animate-in bounce-in duration-300">
-              <span className="material-symbols-outlined">error</span>
-              <span className="font-label-md text-label-md">{errorMsg}</span>
-            </div>
-          )}
-
-          {!gameOver ? (
-            <>
-              <div key={words.length} className="text-center my-md md:my-lg animate-in fade-in zoom-in-95 duration-300">
-                <div className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">Last Word</div>
-                {renderHighlightedLastWord()}
-                <div className="mt-sm font-body-md text-body-md text-outline">
-                  {lastWord ? (
-                    <>Kata berikutnya harus diawali <strong className="text-secondary-container uppercase">{requiredStart}</strong> <span className="text-outline-variant text-sm block mt-1">(Bisa ketik kata lengkap atau lanjutannya saja)</span></>
-                  ) : (
-                    <>Ketik kata pertama untuk memulai permainan!</>
-                  )}
-                </div>
+                  );
+                })}
               </div>
+            </div>
 
-              <form onSubmit={handleWordSubmit} className="w-full">
-                <div 
-                  onClick={() => inputRef.current?.focus()}
-                  className={`w-full relative border-2 rounded-xl py-md px-4 font-headline-lg-mobile text-headline-lg-mobile flex items-center bg-surface cursor-text transition-all shadow-sm ${
-                    isShaking 
-                      ? 'shake-animation border-error ring-4 ring-error-container/20' 
-                      : isPopping 
-                        ? 'success-pop border-success' 
-                        : isFocused
-                          ? 'border-primary ring-4 ring-primary-container/20'
-                          : 'border-primary-fixed hover:border-primary/60'
-                  }`}
-                >
-                  {/* Invisible real input for capturing keypress/input events */}
-                  <input 
-                    ref={inputRef}
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value.toLowerCase())}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    disabled={isLoading}
-                    autoComplete="off"
-                    spellCheck="false"
-                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-text"
-                  />
+            {/* Right Column: Active Play Area */}
+            <div
+              style={{ animationDelay: '250ms' }}
+              className="md:col-span-2 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant p-md md:p-lg flex flex-col justify-center relative overflow-hidden h-[300px] md:h-[430px] animate-bento-card"
+            >
 
-                  {/* Gorgeous Seamless Typographic Overlay */}
-                  <div className="flex items-center w-full select-none pointer-events-none uppercase font-bold tracking-wide">
-                    {requiredStart && (
-                      <span className="text-secondary-container">{requiredStart}</span>
-                    )}
-                    
-                    {inputValue.trim() ? (
-                      <span className="text-on-surface">{displayedSuffix}</span>
-                    ) : (
-                      <span className="text-outline-variant italic font-normal text-headline-md pl-1">
-                        {lastWord ? "lanjutan..." : "ketik kata..."}
-                      </span>
-                    )}
+              {/* Feedback Toast */}
+              {showToast && !gameOver && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-tertiary-container text-on-tertiary-container px-md py-sm rounded-full shadow-md flex items-center gap-2 z-10 animate-in slide-in-from-top-4 fade-in duration-300">
+                  <span className="material-symbols-outlined">check_circle</span>
+                  <span className="font-label-md text-label-md">Great word! +{lastPoints} points</span>
+                </div>
+              )}
 
-                    {/* Custom animated blinking caret cursor */}
-                    {isFocused && <span className="custom-caret" />}
+              {errorMsg && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-error text-on-error px-md py-sm rounded-full shadow-md flex items-center gap-2 z-10 animate-in bounce-in duration-300">
+                  <span className="material-symbols-outlined">error</span>
+                  <span className="font-label-md text-label-md">{errorMsg}</span>
+                </div>
+              )}
+
+              {!gameOver ? (
+                <>
+                  <div key={words.length} className="text-center my-md md:my-lg animate-in fade-in zoom-in-95 duration-300">
+                    <div className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">Last Word</div>
+                    {renderHighlightedLastWord()}
+                    <div className="mt-sm font-body-md text-body-md text-outline">
+                      {lastWord ? (
+                        <>Kata berikutnya harus diawali <strong className="text-secondary-container uppercase">{requiredStart}</strong> <span className="text-outline-variant text-sm block mt-1">(Bisa ketik kata lengkap atau lanjutannya saja)</span></>
+                      ) : (
+                        <>Ketik kata pertama untuk memulai permainan!</>
+                      )}
+                    </div>
                   </div>
+
+                  <form onSubmit={handleWordSubmit} className="w-full">
+                    <div
+                      onClick={() => inputRef.current?.focus()}
+                      className={`w-full relative border-2 rounded-xl py-md px-4 font-headline-lg-mobile text-headline-lg-mobile flex items-center bg-surface cursor-text transition-all shadow-sm ${isShaking
+                        ? 'shake-animation border-error ring-4 ring-error-container/20'
+                        : isPopping
+                          ? 'success-pop border-success'
+                          : isFocused
+                            ? 'border-primary ring-4 ring-primary-container/20'
+                            : 'border-primary-fixed hover:border-primary/60'
+                        }`}
+                    >
+                      {/* Invisible real input for capturing keypress/input events */}
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value.toLowerCase())}
+                        onFocus={() => setIsFocused(true)}
+                        onBlur={() => setIsFocused(false)}
+                        disabled={isLoading}
+                        autoComplete="off"
+                        spellCheck="false"
+                        className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-text"
+                      />
+
+                      {/* Gorgeous Seamless Typographic Overlay */}
+                      <div className="flex items-center w-full select-none pointer-events-none uppercase font-bold tracking-wide">
+                        {requiredStart && (
+                          <span className="text-secondary-container">{requiredStart}</span>
+                        )}
+
+                        {inputValue.trim() && (
+                          <span className="text-on-surface">{displayedSuffix}</span>
+                        )}
+
+                        {/* Custom animated blinking caret cursor */}
+                        {isFocused && <span className="custom-caret" />}
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading || (!inputValue.trim() && !!lastWord)}
+                      className="w-full mt-md bg-secondary-container hover:bg-secondary disabled:bg-surface-variant disabled:text-outline text-on-secondary-container hover:text-on-secondary font-title-md text-title-md py-md rounded-xl shadow-[0_4px_0_0_rgba(133,83,0,1)] active:shadow-none active:translate-y-xs disabled:shadow-none disabled:active:translate-y-0 transition-all flex justify-center items-center gap-2"
+                    >
+                      {isLoading ? (
+                        <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                      ) : (
+                        <>
+                          <span>Submit Word</span>
+                          <span className="material-symbols-outlined">send</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="text-center space-y-6 my-auto animate-spring-card">
+                  <div className="text-error mb-2">
+                    <span className="material-symbols-outlined text-[64px]">cancel</span>
+                  </div>
+                  <h2 className="font-display-lg text-display-lg text-error">Game Over!</h2>
+                  <div className="font-body-lg text-body-lg text-on-surface-variant">
+                    Skor Akhir: <strong className="text-primary text-2xl ml-2">{score.toLocaleString()}</strong>
+                  </div>
+                  <button
+                    onClick={handleRestart}
+                    className="mx-auto mt-lg bg-primary hover:bg-primary-fixed-variant text-on-primary font-title-md text-title-md px-xl py-md rounded-xl shadow-[0_4px_0_0_rgba(0,23,75,1)] active:shadow-none active:translate-y-xs transition-all flex justify-center items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined">refresh</span>
+                    <span>Main Lagi</span>
+                  </button>
                 </div>
-                
-                <button 
-                  type="submit"
-                  disabled={isLoading || (!inputValue.trim() && !!lastWord)}
-                  className="w-full mt-md bg-secondary-container hover:bg-secondary disabled:bg-surface-variant disabled:text-outline text-on-secondary-container hover:text-on-secondary font-title-md text-title-md py-md rounded-xl shadow-[0_4px_0_0_rgba(133,83,0,1)] active:shadow-none active:translate-y-[4px] disabled:shadow-none disabled:active:translate-y-0 transition-all flex justify-center items-center gap-2"
-                >
-                  {isLoading ? (
-                    <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                  ) : (
-                    <>
-                      <span>Submit Word</span>
-                      <span className="material-symbols-outlined">send</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </>
-          ) : (
-            <div className="text-center space-y-6 my-auto animate-spring-card">
-              <div className="text-error mb-2">
-                <span className="material-symbols-outlined text-[64px]">cancel</span>
-              </div>
-              <h2 className="font-display-lg text-display-lg text-error">Game Over!</h2>
-              <div className="font-body-lg text-body-lg text-on-surface-variant">
-                Skor Akhir: <strong className="text-primary text-2xl ml-2">{score.toLocaleString()}</strong>
-              </div>
-              <button 
-                onClick={handleRestart}
-                className="mx-auto mt-lg bg-primary hover:bg-primary-fixed-variant text-on-primary font-title-md text-title-md px-xl py-md rounded-xl shadow-[0_4px_0_0_rgba(0,23,75,1)] active:shadow-none active:translate-y-[4px] transition-all flex justify-center items-center gap-2"
-              >
-                <span className="material-symbols-outlined">refresh</span>
-                <span>Main Lagi</span>
-              </button>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-      </>
-    )}
+          </div>
+        </>
+      )}
 
       {/* Confirmation Modal */}
       {isConfirmModalOpen && (
@@ -586,7 +706,7 @@ export default function GamePage() {
               <button
                 type="button"
                 onClick={confirmLeave}
-                className="flex-1 bg-error text-on-error font-label-md px-6 py-2.5 rounded-xl hover:bg-error/90 active:scale-95 transition-all cursor-pointer shadow-sm border-b-[3px] border-[#93000a] active:border-b-0 active:translate-y-[3px]"
+                className="flex-1 bg-error text-on-error font-label-md px-6 py-2.5 rounded-xl hover:bg-error/90 active:scale-95 transition-all cursor-pointer shadow-sm border-b-[3px] border-on-error-container active:border-b-0 active:translate-y-[3px]"
               >
                 Ya, Keluar
               </button>

@@ -12,6 +12,8 @@ interface DictionaryEntry {
 export default function DictionaryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingExample, setLoadingExample] = useState(false);
+  const [showFullMeaning, setShowFullMeaning] = useState(false);
   const [result, setResult] = useState<DictionaryEntry | null>(null);
   const [error, setError] = useState('');
   const [trending, setTrending] = useState<DictionaryEntry[]>([]);
@@ -56,6 +58,26 @@ export default function DictionaryPage() {
     localStorage.removeItem('recent_searches');
   };
 
+  const fetchLazyExample = async (word: string) => {
+    setLoadingExample(true);
+    try {
+      const response = await fetch(`http://localhost:5000/api/dictionary/example?q=${encodeURIComponent(word)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.example_usage) {
+          setResult(prev => prev && prev.word.toLowerCase() === word.toLowerCase() ? {
+            ...prev,
+            example_usage: data.example_usage
+          } : prev);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to lazy load example sentence:', err);
+    } finally {
+      setLoadingExample(false);
+    }
+  };
+
   const handleSearch = async (e?: React.FormEvent, overrideQuery?: string) => {
     if (e) e.preventDefault();
     const query = (overrideQuery || searchQuery).trim();
@@ -64,6 +86,8 @@ export default function DictionaryPage() {
     setLoading(true);
     setError('');
     setResult(null);
+    setLoadingExample(false);
+    setShowFullMeaning(false);
 
     try {
       const response = await fetch(`http://localhost:5000/api/dictionary/search?q=${encodeURIComponent(query)}`);
@@ -73,7 +97,7 @@ export default function DictionaryPage() {
         setError(data.error || 'Kata tidak ditemukan.');
       } else {
         setResult(data);
-        
+
         // Save to recent searches history
         setRecentSearches(prev => {
           const filtered = prev.filter(w => w !== data.word.toLowerCase());
@@ -81,6 +105,11 @@ export default function DictionaryPage() {
           localStorage.setItem('recent_searches', JSON.stringify(updated));
           return updated;
         });
+
+        // Trigger lazy loading for example sentence if empty
+        if (!data.example_usage || data.example_usage.trim() === '') {
+          fetchLazyExample(data.word);
+        }
       }
     } catch (err) {
       console.error('Search error:', err);
@@ -100,23 +129,23 @@ export default function DictionaryPage() {
         </p>
         <form onSubmit={handleSearch} className="relative w-full shadow-[0_4px_12px_rgba(37,99,235,0.08)] rounded-full">
           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline-variant text-[28px]">search</span>
-          <input 
+          <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-14 pr-24 py-4 rounded-full border-2 border-surface-variant bg-surface-container-lowest font-title-md text-title-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" 
-            placeholder="Cari kata di sini..." 
+            className="w-full pl-14 pr-24 py-4 rounded-full border-2 border-surface-variant bg-surface-container-lowest font-title-md text-title-md text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+            placeholder="Cari kata di sini..."
           />
-          <button 
+          <button
             type="submit"
             disabled={loading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary text-on-primary font-label-md text-label-md px-6 py-2 rounded-full border-b-[3px] border-[#003ea8] hover:bg-[#003ea8] active:border-b-0 active:translate-y-[3px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-primary text-on-primary font-label-md text-label-md px-6 py-2 rounded-full border-b-[3px] border-on-primary-fixed-variant hover:bg-on-primary-fixed-variant active:border-b-0 active:translate-y-[3px] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Mencari...' : 'Cari'}
           </button>
         </form>
         {error && (
-          <p className="text-error font-body-md bg-error-container text-on-error-container px-4 py-2 rounded-lg mt-2">
+          <p className="font-body-md bg-error-container text-on-error-container px-4 py-2 rounded-lg mt-2">
             {error}
           </p>
         )}
@@ -135,7 +164,7 @@ export default function DictionaryPage() {
                   {result.word_type || 'Tidak Diketahui'}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   const speech = new SpeechSynthesisUtterance(result.word);
                   speech.lang = 'id-ID';
@@ -149,38 +178,53 @@ export default function DictionaryPage() {
             </div>
             <div className="flex flex-col gap-xs mt-sm">
               <h3 className="font-title-md text-title-md text-on-surface">Definisi</h3>
-              <p className="font-body-lg text-body-lg text-on-surface-variant">{result.meaning}</p>
+              <p className="font-body-lg text-body-lg text-on-surface-variant transition-all">
+                {result.meaning.length > 200 && !showFullMeaning
+                  ? `${result.meaning.slice(0, 200)}...`
+                  : result.meaning}
+              </p>
+              {result.meaning.length > 200 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullMeaning(!showFullMeaning)}
+                  className="text-primary hover:text-on-primary-fixed-variant font-label-md text-label-md w-fit flex items-center gap-1 mt-1 transition-colors font-semibold cursor-pointer"
+                >
+                  {showFullMeaning ? 'Tampilkan Lebih Sedikit' : 'Tampilkan Lebih Banyak'}
+                  <span className="material-symbols-outlined text-[18px]">
+                    {showFullMeaning ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+              )}
             </div>
-            
-            {result.example_usage && (
-              <div className="flex flex-col gap-xs mt-sm bg-surface-container-low p-md rounded-lg border-l-4 border-secondary">
-                <h3 className="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">magic_button</span>
-                  Contoh Penggunaan (AI Generated)
-                </h3>
-                <p className="font-body-md text-body-md text-on-surface-variant italic">"{result.example_usage}"</p>
-              </div>
-            )}
           </div>
 
-          {/* Related Info / Syllables */}
+          {/* Related Info / Example Sentence */}
           <div className="md:col-span-4 flex flex-col gap-md">
-            <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_16px_rgba(37,99,235,0.06)] border border-surface-variant flex-1">
-              <h3 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-2">
-                <span className="material-symbols-outlined text-secondary">splitscreen</span>
+            <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_16px_rgba(37,99,235,0.06)] border border-surface-variant flex-1 flex flex-col gap-md">
+              <h3 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-2 border-b border-surface-variant pb-2">
+                <span className="material-symbols-outlined text-secondary">info</span>
                 Info Kata
               </h3>
-              <div className="flex flex-col gap-2 mt-4">
-                <p className="font-label-sm text-label-sm text-outline">Huruf Terakhir:</p>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-surface-container text-on-surface font-headline-lg-mobile text-headline-lg-mobile px-4 py-2 rounded-lg border border-outline-variant border-b-4 border-b-primary uppercase">
-                    {result.word.slice(-2)}
-                  </span>
+
+              {loadingExample ? (
+                <div className="flex flex-col gap-sm bg-surface-container-low p-md rounded-lg border-l-4 border-secondary animate-pulse">
+                  <h3 className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[18px] text-secondary animate-spin">sync</span>
+                    Menghasilkan Contoh Kalimat (AI)...
+                  </h3>
+                  <div className="h-3 bg-surface-container-highest rounded w-3/4"></div>
                 </div>
-                <p className="font-label-sm text-label-sm text-outline mt-sm">
-                  Jika ini dimainkan, kata selanjutnya harus berawalan <strong className="text-primary uppercase">{result.word.slice(-2)}</strong>
-                </p>
-              </div>
+              ) : result.example_usage ? (
+                <div className="flex flex-col gap-xs bg-surface-container-low p-md rounded-lg border-l-4 border-secondary">
+                  <h3 className="font-label-sm text-label-sm text-on-surface font-semibold flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[18px] text-secondary">magic_button</span>
+                    Contoh Penggunaan (AI Generated)
+                  </h3>
+                  <p className="font-body-md text-body-md text-on-surface-variant italic mt-2">"{result.example_usage}"</p>
+                </div>
+              ) : (
+                <p className="font-body-md text-outline-variant italic">Contoh kalimat tidak tersedia.</p>
+              )}
             </div>
           </div>
         </section>
@@ -194,7 +238,7 @@ export default function DictionaryPage() {
               <span className="material-symbols-outlined text-primary text-[22px]">history</span>
               Pencarian Terakhir
             </h2>
-            <button 
+            <button
               onClick={clearRecentSearches}
               className="text-label-sm text-outline hover:text-error transition-colors flex items-center gap-1 cursor-pointer font-medium"
             >
@@ -204,12 +248,12 @@ export default function DictionaryPage() {
           </div>
           <div className="flex flex-wrap gap-sm">
             {recentSearches.map((word, index) => (
-              <div 
+              <div
                 key={word}
                 style={{ animationDelay: `${index * 50}ms` }}
                 className="animate-slide-up-fade flex items-center gap-2 bg-surface-container-low hover:bg-surface-container border border-surface-variant hover:border-primary/40 px-md py-sm rounded-full transition-all shadow-sm group hover:scale-[1.03]"
               >
-                <button 
+                <button
                   onClick={() => {
                     setSearchQuery(word);
                     handleSearch(undefined, word);
@@ -219,7 +263,7 @@ export default function DictionaryPage() {
                   <span className="material-symbols-outlined text-[16px] text-outline group-hover:text-primary transition-colors">search</span>
                   {word}
                 </button>
-                <button 
+                <button
                   onClick={() => removeRecentSearch(word)}
                   className="text-outline hover:text-error rounded-full p-0.5 hover:bg-surface-container-high transition-colors flex items-center justify-center cursor-pointer"
                   title="Hapus"
@@ -238,8 +282,8 @@ export default function DictionaryPage() {
           <h2 className="font-title-md text-title-md text-on-surface mb-md animate-slide-up-fade">Pencarian Populer</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-sm">
             {trending.map((t, index) => (
-              <button 
-                key={t.id} 
+              <button
+                key={t.id}
                 onClick={() => {
                   setSearchQuery(t.word);
                   handleSearch(undefined, t.word);
