@@ -8,10 +8,14 @@ import ProfilePage from './pages/ProfilePage';
 import { TopNavbar, BottomNavbar } from './components/Navbar';
 import Footer from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
+import InteractiveBackground from './components/InteractiveBackground';
 function App() {
   return (
     <AuthProvider>
-      <div className="bg-background text-on-background min-h-screen flex flex-col font-body-md">
+      <div className="text-on-background min-h-screen flex flex-col font-body-md relative">
+        {/* Interactive Floating Letter Background */}
+        <InteractiveBackground />
+
         {/* TopAppBar */}
         <TopNavbar />
 

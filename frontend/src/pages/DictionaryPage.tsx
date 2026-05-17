@@ -15,8 +15,9 @@ export default function DictionaryPage() {
   const [result, setResult] = useState<DictionaryEntry | null>(null);
   const [error, setError] = useState('');
   const [trending, setTrending] = useState<DictionaryEntry[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  // Fetch trending words on mount
+  // Fetch trending and load recent searches on mount
   useEffect(() => {
     const fetchTrending = async () => {
       try {
@@ -30,7 +31,30 @@ export default function DictionaryPage() {
       }
     };
     fetchTrending();
+
+    // Load recent searches
+    const saved = localStorage.getItem('recent_searches');
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (err) {
+        // Ignored
+      }
+    }
   }, []);
+
+  const removeRecentSearch = (word: string) => {
+    setRecentSearches(prev => {
+      const updated = prev.filter(w => w !== word);
+      localStorage.setItem('recent_searches', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recent_searches');
+  };
 
   const handleSearch = async (e?: React.FormEvent, overrideQuery?: string) => {
     if (e) e.preventDefault();
@@ -49,6 +73,14 @@ export default function DictionaryPage() {
         setError(data.error || 'Kata tidak ditemukan.');
       } else {
         setResult(data);
+        
+        // Save to recent searches history
+        setRecentSearches(prev => {
+          const filtered = prev.filter(w => w !== data.word.toLowerCase());
+          const updated = [data.word.toLowerCase(), ...filtered].slice(0, 5);
+          localStorage.setItem('recent_searches', JSON.stringify(updated));
+          return updated;
+        });
       }
     } catch (err) {
       console.error('Search error:', err);
@@ -154,19 +186,66 @@ export default function DictionaryPage() {
         </section>
       )}
 
+      {/* Recent Searches Row */}
+      {recentSearches.length > 0 && (
+        <section className="mt-lg text-left">
+          <div className="flex justify-between items-center mb-md animate-slide-up-fade">
+            <h2 className="font-title-md text-title-md text-on-surface flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-[22px]">history</span>
+              Pencarian Terakhir
+            </h2>
+            <button 
+              onClick={clearRecentSearches}
+              className="text-label-sm text-outline hover:text-error transition-colors flex items-center gap-1 cursor-pointer font-medium"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
+              Hapus Semua
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-sm">
+            {recentSearches.map((word, index) => (
+              <div 
+                key={word}
+                style={{ animationDelay: `${index * 50}ms` }}
+                className="animate-slide-up-fade flex items-center gap-2 bg-surface-container-low hover:bg-surface-container border border-surface-variant hover:border-primary/40 px-md py-sm rounded-full transition-all shadow-sm group hover:scale-[1.03]"
+              >
+                <button 
+                  onClick={() => {
+                    setSearchQuery(word);
+                    handleSearch(undefined, word);
+                  }}
+                  className="font-body-md text-body-md text-on-surface capitalize cursor-pointer flex items-center gap-1.5 font-medium"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-outline group-hover:text-primary transition-colors">search</span>
+                  {word}
+                </button>
+                <button 
+                  onClick={() => removeRecentSearch(word)}
+                  className="text-outline hover:text-error rounded-full p-0.5 hover:bg-surface-container-high transition-colors flex items-center justify-center cursor-pointer"
+                  title="Hapus"
+                >
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Trending Words Row */}
       {trending.length > 0 && (
         <section className="mt-lg text-left">
-          <h2 className="font-title-md text-title-md text-on-surface mb-md">Pencarian Populer</h2>
+          <h2 className="font-title-md text-title-md text-on-surface mb-md animate-slide-up-fade">Pencarian Populer</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-sm">
-            {trending.map((t) => (
+            {trending.map((t, index) => (
               <button 
                 key={t.id} 
                 onClick={() => {
                   setSearchQuery(t.word);
                   handleSearch(undefined, t.word);
                 }}
-                className="bg-surface-container-lowest p-sm rounded-lg border border-surface-variant hover:border-primary hover:shadow-md transition-all flex flex-col justify-between h-24 text-left cursor-pointer"
+                style={{ animationDelay: `${index * 75}ms` }}
+                className="bg-surface-container-lowest p-sm rounded-lg border border-surface-variant hover:border-primary hover:shadow-md transition-all flex flex-col justify-between h-24 text-left cursor-pointer animate-slide-up-fade shadow-sm hover:scale-[1.03] active:scale-[0.98]"
               >
                 <span className="font-label-md text-label-md text-on-surface-variant capitalize">{t.word_type || 'Kata'}</span>
                 <span className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface capitalize">{t.word}</span>

@@ -7,6 +7,26 @@ export default function HomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ level: 1, words: 0, highScore: 0, gamesPlayed: 0 });
+  const [bentoVisible, setBentoVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setBentoVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    const element = document.getElementById('bento-section');
+    if (element) {
+      observer.observe(element);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -39,13 +59,13 @@ export default function HomePage() {
       {/* Hero Section */}
       <section className="w-full max-w-max-width-content px-margin-mobile md:px-0 mt-lg mb-xl flex flex-col md:flex-row items-center gap-xl">
         <div className="flex-1 flex flex-col gap-md text-center md:text-left">
-          <h1 className="font-display-lg text-display-lg text-primary">
+          <h1 className="font-display-lg text-display-lg text-primary animate-hero-intro" style={{ animationDelay: '50ms' }}>
             Uji Kosakatamu, Sambung Katanya!
           </h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+          <p className="font-body-lg text-body-lg text-on-surface-variant max-w-2xl animate-hero-intro" style={{ animationDelay: '150ms' }}>
             Tantang dirimu dan teman-teman dalam permainan edukatif yang seru. Perkaya perbendaharaan katamu satu demi satu langkah.
           </p>
-          <div className="flex flex-col sm:flex-row gap-sm justify-center md:justify-start mt-sm">
+          <div className="flex flex-col sm:flex-row gap-sm justify-center md:justify-start mt-sm animate-hero-intro" style={{ animationDelay: '250ms' }}>
             <Link 
               to="/game" 
               className="bg-primary text-on-primary font-label-md text-label-md px-lg py-3 rounded-xl border-b-[4px] border-[#003ea8] hover:bg-[#003ea8] hover:scale-[1.04] hover:shadow-[0_8px_20px_rgba(0,74,198,0.25)] active:border-b-0 active:translate-y-[4px] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md select-none"
@@ -67,26 +87,69 @@ export default function HomePage() {
           {/* Aesthetic Graphic Placeholder for Word Game */}
           <div className="absolute inset-0 bg-gradient-to-br from-surface-container-low to-surface-container flex items-center justify-center opacity-80">
             <div className="grid grid-cols-3 gap-2 p-4">
-              <div className="w-16 h-16 bg-primary text-on-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm">K</div>
-              <div className="w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50">A</div>
-              <div className="w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50">T</div>
+              <div 
+                style={{ animationDelay: '350ms' }}
+                className="w-16 h-16 bg-primary text-on-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm animate-tile-drop"
+              >
+                K
+              </div>
+              <div 
+                style={{ animationDelay: '450ms' }}
+                className="w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50 animate-tile-drop"
+              >
+                A
+              </div>
+              <div 
+                style={{ animationDelay: '550ms' }}
+                className="w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50 animate-tile-drop"
+              >
+                T
+              </div>
               
-              <div className="col-start-3 w-16 h-16 bg-secondary-container text-on-secondary-container rounded-lg flex items-center justify-center font-display-lg shadow-sm">A</div>
+              <div 
+                style={{ animationDelay: '650ms' }}
+                className="col-start-3 w-16 h-16 bg-secondary-container text-on-secondary-container rounded-lg flex items-center justify-center font-display-lg shadow-sm animate-tile-drop"
+              >
+                A
+              </div>
               
-              <div className="col-start-3 w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50">K</div>
-              <div className="col-start-3 w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50">A</div>
-              <div className="col-start-3 w-16 h-16 bg-primary text-on-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm">N</div>
+              <div 
+                style={{ animationDelay: '750ms' }}
+                className="col-start-3 w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50 animate-tile-drop"
+              >
+                K
+              </div>
+              <div 
+                style={{ animationDelay: '850ms' }}
+                className="col-start-3 w-16 h-16 bg-surface text-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm border border-outline-variant/50 animate-tile-drop"
+              >
+                A
+              </div>
+              <div 
+                style={{ animationDelay: '950ms' }}
+                className="col-start-3 w-16 h-16 bg-primary text-on-primary rounded-lg flex items-center justify-center font-display-lg shadow-sm animate-tile-drop"
+              >
+                N
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats & Features (Bento Grid) */}
-      <section className="w-full max-w-max-width-content px-margin-mobile md:px-0 mb-xl">
-        <h2 className="font-headline-lg text-headline-lg text-primary mb-md text-left md:text-center w-full">Statistik &amp; Cara Main</h2>
+      <section 
+        id="bento-section"
+        className="w-full max-w-max-width-content px-margin-mobile md:px-0 mb-xl"
+      >
+        <h2 className={`font-headline-lg text-headline-lg text-primary mb-md text-left md:text-center w-full transition-all duration-700 ${bentoVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+          Statistik &amp; Cara Main
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-md text-left">
           {/* Player Stats */}
-          <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm md:col-span-1">
+          <div 
+            style={{ animationDelay: '150ms' }}
+            className={`bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm md:col-span-1 ${bentoVisible ? 'animate-bento-card' : 'opacity-0'}`}
+          >
             <div className="flex items-center gap-2 text-secondary">
               <span className="material-symbols-outlined">analytics</span>
               <h3 className="font-title-md text-title-md">Statistik Pemain</h3>
@@ -132,7 +195,10 @@ export default function HomePage() {
           </div>
 
           {/* How to Play 1 */}
-          <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm">
+          <div 
+            style={{ animationDelay: '300ms' }}
+            className={`bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm ${bentoVisible ? 'animate-bento-card' : 'opacity-0'}`}
+          >
             <div className="w-12 h-12 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center mb-2">
               <span className="material-symbols-outlined text-[28px]">abc</span>
             </div>
@@ -143,7 +209,10 @@ export default function HomePage() {
           </div>
 
           {/* How to Play 2 */}
-          <div className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm">
+          <div 
+            style={{ animationDelay: '450ms' }}
+            className={`bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_12px_rgba(37,99,235,0.06)] border border-outline-variant/20 flex flex-col gap-sm ${bentoVisible ? 'animate-bento-card' : 'opacity-0'}`}
+          >
             <div className="w-12 h-12 bg-secondary-container text-on-secondary-container rounded-full flex items-center justify-center mb-2">
               <span className="material-symbols-outlined text-[28px]">link</span>
             </div>
