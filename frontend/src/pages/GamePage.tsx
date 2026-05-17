@@ -228,7 +228,7 @@ export default function GamePage() {
                 </div>
               </div>
 
-              <form onSubmit={handleWordSubmit} className="w-full max-w-md mx-auto">
+              <form onSubmit={handleWordSubmit} className="w-full">
                 <div className="relative">
                   {requiredStart && (
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
