@@ -4,6 +4,26 @@ import { supabase } from '../config/supabase';
 
 const router = Router();
 
+async function getSuggestedPrefixLength(word: string): Promise<number> {
+  if (!word || word.length < 4) return 2;
+  const threeCharSuffix = word.slice(-3).toLowerCase();
+  
+  try {
+    const { count, error } = await supabase
+      .from('dictionary')
+      .select('*', { count: 'exact', head: true })
+      .like('word', `${threeCharSuffix}%`);
+      
+    // Jika ada 10 atau lebih kata di kamus yang berawalan 3 huruf ini, sarankan 3 huruf
+    if (!error && count && count >= 10) {
+      return 3;
+    }
+  } catch (err) {
+    console.error('Error counting prefix:', err);
+  }
+  return 2;
+}
+
 // Get a random starting word from the dictionary
 router.get('/random-word', async (req: Request, res: Response): Promise<any> => {
   try {
@@ -24,19 +44,22 @@ router.get('/random-word', async (req: Request, res: Response): Promise<any> => 
         .single();
 
       if (!wordError && data && data.word) {
-        return res.json({ word: data.word });
+        const length = await getSuggestedPrefixLength(data.word);
+        return res.json({ word: data.word, suggestedPrefixLength: length });
       }
     }
 
     // Fallback if no count or db error
     const curatedFallbacks = ['aksara', 'bahasa', 'saujana', 'lentera', 'kembara', 'pustaka', 'harmoni', 'cakrawala'];
     const fallback = curatedFallbacks[Math.floor(Math.random() * curatedFallbacks.length)];
-    return res.json({ word: fallback });
+    const length = await getSuggestedPrefixLength(fallback);
+    return res.json({ word: fallback, suggestedPrefixLength: length });
   } catch (error) {
     console.error('Error fetching random word:', error);
     const curatedFallbacks = ['aksara', 'bahasa', 'saujana', 'lentera', 'kembara', 'pustaka', 'harmoni', 'cakrawala'];
     const fallback = curatedFallbacks[Math.floor(Math.random() * curatedFallbacks.length)];
-    return res.json({ word: fallback });
+    const length = await getSuggestedPrefixLength(fallback);
+    return res.json({ word: fallback, suggestedPrefixLength: length });
   }
 });
 
@@ -49,7 +72,11 @@ router.post('/validate-word', async (req: Request, res: Response): Promise<any> 
 
   try {
     const isValid = await validateWordInKBBI(word);
-    return res.json({ valid: isValid, word });
+    if (isValid) {
+      const length = await getSuggestedPrefixLength(word);
+      return res.json({ valid: true, word, suggestedPrefixLength: length });
+    }
+    return res.json({ valid: false, word });
   } catch (error) {
     return res.status(500).json({ valid: false, message: 'Error validating word' });
   }

@@ -42,8 +42,21 @@ export default function LeaderboardPage() {
           const uid = row.user_id;
           if (!uid) return;
           const score = row.score || 0;
-          const username = row.users?.username || 'Pemain';
-          const avatarUrl = row.users?.avatar_url || '';
+          
+          let username = 'Pemain';
+          let avatarUrl = '';
+          
+          if (row.users) {
+            if (Array.isArray(row.users)) {
+              if (row.users.length > 0) {
+                username = row.users[0]?.username || 'Pemain';
+                avatarUrl = row.users[0]?.avatar_url || '';
+              }
+            } else {
+              username = row.users.username || 'Pemain';
+              avatarUrl = row.users.avatar_url || '';
+            }
+          }
 
           if (!uniqueEntries[uid] || uniqueEntries[uid].score < score) {
             uniqueEntries[uid] = {
@@ -93,8 +106,8 @@ export default function LeaderboardPage() {
   const secondPlace = leaderboard[1];
   const thirdPlace = leaderboard[2];
 
-  // Rest of the leaderboard entries (rank 4+)
-  const listEntries = leaderboard.slice(3);
+  // List all entries from rank 1 onwards
+  const listEntries = leaderboard;
 
   // Calculate Logged-in User's Rank
   const myRankIndex = user ? leaderboard.findIndex((item) => item.user_id === user.id) : -1;
@@ -129,21 +142,27 @@ export default function LeaderboardPage() {
       ) : (
         <>
           {/* Top 3 Podiums (Visual 3D Podium Layout) */}
-          <div className="grid grid-cols-3 gap-xs sm:gap-md items-end mb-lg pt-lg max-w-lg sm:max-w-xl md:max-w-2xl w-full mx-auto">
+          <div className="grid grid-cols-3 gap-xs sm:gap-md items-end mb-lg pt-lg max-w-lg sm:max-w-xl md:max-w-2xl w-full mx-auto h-[270px] sm:h-[300px]">
             
             {/* 2nd Place */}
             <div className="flex flex-col items-center justify-end order-1">
               {secondPlace ? (
                 <>
                   {renderAvatar(secondPlace, 'w-14 h-14 sm:w-16 sm:h-16')}
-                  <div className="bg-surface-container-low rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-outline-variant shadow-sm h-32 relative mt-sm">
+                  <div 
+                    style={{ animationDelay: '250ms' }}
+                    className="bg-surface-container-low rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-outline-variant shadow-sm h-32 relative mt-sm animate-pilar-2"
+                  >
                     <div className="absolute -top-3 bg-outline-variant text-on-surface font-label-sm text-label-sm px-2 py-0.5 rounded-full font-bold">#2</div>
                     <span className="font-title-md text-title-md text-on-surface mt-sm text-center line-clamp-1 w-full px-2 capitalize">{secondPlace.username}</span>
                     <span className="font-label-md text-label-md text-primary mt-xs font-semibold">{secondPlace.score.toLocaleString()}</span>
                   </div>
                 </>
               ) : (
-                <div className="bg-surface-container-low/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-outline-variant/30 h-32 relative">
+                <div 
+                  style={{ animationDelay: '250ms' }}
+                  className="bg-surface-container-low/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-outline-variant/30 h-32 relative animate-pilar-2"
+                >
                   <div className="absolute -top-3 bg-outline-variant/30 text-outline font-label-sm text-label-sm px-2 py-0.5 rounded-full">#2</div>
                   <span className="font-label-sm text-label-sm text-outline">Kosong</span>
                 </div>
@@ -156,14 +175,20 @@ export default function LeaderboardPage() {
                 <>
                   <span className="material-symbols-outlined text-secondary-container mb-xs animate-bounce" style={{ fontSize: '32px', fontVariationSettings: "'FILL' 1" }}>workspace_premium</span>
                   {renderAvatar(firstPlace, 'w-18 h-18 sm:w-20 sm:h-20 border-4 border-secondary-container shadow-md')}
-                  <div className="bg-surface-container rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-secondary-container shadow-md h-40 relative mt-sm">
+                  <div 
+                    style={{ animationDelay: '450ms' }}
+                    className="bg-surface-container rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-secondary-container shadow-md h-40 relative mt-sm animate-pilar-1"
+                  >
                     <div className="absolute -top-3 bg-secondary-container text-on-secondary-container font-label-md text-label-md px-3 py-0.5 rounded-full font-bold">#1</div>
                     <span className="font-title-md text-title-md text-on-surface mt-sm text-center line-clamp-1 w-full px-2 capitalize font-bold">{firstPlace.username}</span>
                     <span className="font-label-md text-label-md text-primary mt-xs font-bold text-lg">{firstPlace.score.toLocaleString()}</span>
                   </div>
                 </>
               ) : (
-                <div className="bg-surface-container/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-secondary-container/30 h-40 relative">
+                <div 
+                  style={{ animationDelay: '450ms' }}
+                  className="bg-surface-container/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-secondary-container/30 h-40 relative animate-pilar-1"
+                >
                   <div className="absolute -top-3 bg-secondary-container/30 text-outline font-label-sm text-label-sm px-2 py-0.5 rounded-full">#1</div>
                   <span className="font-label-sm text-label-sm text-outline">Kosong</span>
                 </div>
@@ -175,14 +200,20 @@ export default function LeaderboardPage() {
               {thirdPlace ? (
                 <>
                   {renderAvatar(thirdPlace, 'w-14 h-14 sm:w-16 sm:h-16')}
-                  <div className="bg-surface-container-low rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-[#cd7f32] shadow-sm h-28 relative mt-sm">
+                  <div 
+                    style={{ animationDelay: '100ms' }}
+                    className="bg-surface-container-low rounded-t-2xl w-full flex flex-col items-center py-md border-t-4 border-[#cd7f32] shadow-sm h-28 relative mt-sm animate-pilar-3"
+                  >
                     <div className="absolute -top-3 bg-[#cd7f32] text-white font-label-sm text-label-sm px-2 py-0.5 rounded-full font-bold">#3</div>
                     <span className="font-title-md text-title-md text-on-surface mt-sm text-center line-clamp-1 w-full px-2 capitalize">{thirdPlace.username}</span>
                     <span className="font-label-md text-label-md text-primary mt-xs font-semibold">{thirdPlace.score.toLocaleString()}</span>
                   </div>
                 </>
               ) : (
-                <div className="bg-surface-container-low/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-[#cd7f32]/30 h-28 relative">
+                <div 
+                  style={{ animationDelay: '100ms' }}
+                  className="bg-surface-container-low/40 rounded-t-2xl w-full flex flex-col items-center justify-center py-md border-t-4 border-[#cd7f32]/30 h-28 relative animate-pilar-3"
+                >
                   <div className="absolute -top-3 bg-[#cd7f32]/30 text-outline font-label-sm text-label-sm px-2 py-0.5 rounded-full">#3</div>
                   <span className="font-label-sm text-label-sm text-outline">Kosong</span>
                 </div>
@@ -196,7 +227,7 @@ export default function LeaderboardPage() {
             
             {/* Header */}
             <div className="flex items-center px-md py-3.5 border-b border-outline-variant bg-surface-container-low">
-              <div className="w-14 text-center font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-wider">Pangkat</div>
+              <div className="w-20 text-center font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-wider">Peringkat</div>
               <div className="flex-grow font-label-md text-label-md text-on-surface-variant px-sm font-bold uppercase tracking-wider">Pemain</div>
               <div className="w-24 text-right font-label-md text-label-md text-on-surface-variant font-bold uppercase tracking-wider">Skor Tertinggi</div>
             </div>
@@ -209,10 +240,10 @@ export default function LeaderboardPage() {
                 </div>
               ) : (
                 listEntries.map((entry, index) => {
-                  const rank = index + 4;
+                  const rank = index + 1;
                   return (
                     <div key={entry.user_id} className="flex items-center px-md py-3 hover:bg-surface-container-low/50 transition-colors">
-                      <div className="w-14 text-center font-title-md text-title-md text-on-surface-variant font-semibold">{rank}</div>
+                      <div className="w-20 text-center font-title-md text-title-md text-on-surface-variant font-semibold">{rank}</div>
                       <div className="flex-grow flex items-center gap-sm px-sm">
                         {renderAvatar(entry, 'w-9 h-9')}
                         <span className="font-body-md text-body-md text-on-surface capitalize font-medium">{entry.username}</span>
@@ -230,7 +261,7 @@ export default function LeaderboardPage() {
             {user ? (
               myRank ? (
                 <div className="bg-primary-container text-on-primary-container rounded-2xl shadow-xl border-2 border-primary overflow-hidden flex items-center px-md py-4 transition-all hover:scale-[1.01] duration-300">
-                  <div className="w-14 text-center font-headline-lg-mobile text-[24px] font-bold">#{myRank}</div>
+                  <div className="w-20 text-center font-headline-lg-mobile text-[24px] font-bold">#{myRank}</div>
                   <div className="flex-grow flex items-center gap-sm px-sm">
                     {renderAvatar({ user_id: user.id, username: profile?.username || 'Saya', avatar_url: profile?.avatar_url || '', score: myBestScore }, 'w-11 h-11 border-2 border-white/40')}
                     <div className="flex flex-col">

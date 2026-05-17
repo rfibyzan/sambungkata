@@ -17,6 +17,7 @@ export default function GamePage() {
   const [showToast, setShowToast] = useState(false);
   const [lastPoints, setLastPoints] = useState(0);
   const [hasSavedScore, setHasSavedScore] = useState(false);
+  const [currentPrefixLength, setCurrentPrefixLength] = useState(2);
 
   // Navigation interceptor states
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
@@ -25,6 +26,9 @@ export default function GamePage() {
 
   const [hasStarted, setHasStarted] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
+  const [isPopping, setIsPopping] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -177,20 +181,22 @@ export default function GamePage() {
     }
   }, [gameOver, user, score, words, hasSavedScore]);
 
-  const getLastSyllableOrChar = (word: string) => {
-    if (!word) return '';
-    if (word.length <= 2) return word.toLowerCase();
-    const vowels = ['a', 'e', 'i', 'o', 'u'];
-    const lastChar = word.slice(-1).toLowerCase();
-    const secondLast = word.slice(-2, -1).toLowerCase();
-    if (vowels.includes(lastChar) && !vowels.includes(secondLast)) {
-      return word.slice(-2).toLowerCase();
-    }
-    return word.slice(-2).toLowerCase();
-  };
+
 
   const lastWord = words.length > 0 ? words[words.length - 1] : '';
-  const requiredStart = getLastSyllableOrChar(lastWord);
+  const requiredStart = lastWord ? lastWord.slice(-currentPrefixLength).toLowerCase() : '';
+
+  const getDisplayedSuffix = () => {
+    if (!requiredStart) return inputValue;
+    const normalizedInput = inputValue.toLowerCase();
+    const normalizedPrefix = requiredStart.toLowerCase();
+    if (normalizedInput.startsWith(normalizedPrefix)) {
+      return inputValue.slice(requiredStart.length);
+    }
+    return inputValue;
+  };
+
+  const displayedSuffix = getDisplayedSuffix();
 
   const handleWordSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -198,6 +204,11 @@ export default function GamePage() {
     
     const typedWord = inputValue.toLowerCase().trim();
     if (!typedWord) return;
+
+    const triggerShake = () => {
+      setIsShaking(true);
+      setTimeout(() => setIsShaking(false), 400);
+    };
 
     // Intelligent Submit: check if typedWord already starts with the required start characters
     let fullWord = typedWord;
@@ -210,6 +221,7 @@ export default function GamePage() {
 
     if (words.includes(fullWord)) {
       setErrorMsg('Kata sudah digunakan!');
+      triggerShake();
       return;
     }
 
@@ -229,15 +241,20 @@ export default function GamePage() {
         setScore(score + points);
         setLastPoints(points);
         setInputValue('');
+        setIsPopping(true);
+        setTimeout(() => setIsPopping(false), 350);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
+        setCurrentPrefixLength(data.suggestedPrefixLength || 2);
       } else {
         setErrorMsg('Kata tidak valid di KBBI!');
+        triggerShake();
         setGameOver(true);
         if (timerRef.current) clearInterval(timerRef.current);
       }
     } catch (err) {
       setErrorMsg('Gagal memvalidasi kata. Server error?');
+      triggerShake();
     } finally {
       setIsLoading(false);
     }
@@ -251,12 +268,15 @@ export default function GamePage() {
       const data = await res.json();
       if (data && data.word) {
         setWords([data.word]);
+        setCurrentPrefixLength(data.suggestedPrefixLength || 2);
       } else {
         setWords(['aksara']);
+        setCurrentPrefixLength(2);
       }
     } catch (err) {
       console.error("Gagal mengambil kata acak pertama:", err);
       setWords(['aksara']);
+      setCurrentPrefixLength(2);
     } finally {
       setIsInitializing(false);
     }
@@ -277,6 +297,7 @@ export default function GamePage() {
     setShowToast(false);
     setHasSavedScore(false);
     setHasStarted(false); // Return to Start screen
+    setCurrentPrefixLength(2); // Reset to 2
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
@@ -308,18 +329,18 @@ export default function GamePage() {
   return (
     <div className="w-full max-w-max-width-content mx-auto px-margin-mobile md:px-margin-desktop py-md md:py-lg">
       {!hasStarted ? (
-        <div className="w-full max-w-[480px] mx-auto bg-surface-container-low border border-outline-variant rounded-2xl p-sm sm:p-md md:p-lg shadow-lg relative flex flex-col items-center text-center gap-xs sm:gap-sm md:gap-md my-1 sm:my-3 md:my-6 animate-in fade-in zoom-in-95 duration-300">
+        <div className="w-full max-w-[480px] mx-auto bg-surface-container-low border border-outline-variant rounded-2xl p-sm sm:p-md md:p-lg shadow-lg relative flex flex-col items-center text-center gap-xs sm:gap-sm md:gap-md my-1 sm:my-3 md:my-6 animate-spring-card">
           <div className="w-12 h-12 md:w-16 md:h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center shadow-md animate-bounce duration-1000">
             <span className="material-symbols-outlined text-[26px] md:text-[36px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>sports_esports</span>
           </div>
-          <div>
+          <div className="animate-hero-intro" style={{ animationDelay: '100ms' }}>
             <h2 className="text-lg sm:text-xl md:text-2xl text-primary font-bold">Mulai SambungKata</h2>
             <p className="font-body-md text-[11px] sm:text-xs md:text-sm text-on-surface-variant mt-0.5 max-w-[400px] leading-relaxed">
               Platform permainan kata berantai yang menantang! Sistem akan memilih kata awal secara acak dari KBBI untuk Anda lanjutkan.
             </p>
           </div>
           
-          <div className="bg-surface-container rounded-xl p-2 sm:p-3 w-full text-left border border-outline-variant/40 flex flex-col gap-1">
+          <div className="bg-surface-container rounded-xl p-2 sm:p-3 w-full text-left border border-outline-variant/40 flex flex-col gap-1 animate-hero-intro" style={{ animationDelay: '200ms' }}>
             <h4 className="font-title-sm text-[11px] sm:text-xs md:text-sm text-on-surface font-bold flex items-center gap-1">
               <span className="material-symbols-outlined text-primary text-[16px] sm:text-[18px]">info</span>
               Cara Bermain:
@@ -335,7 +356,8 @@ export default function GamePage() {
           <button 
             type="button"
             onClick={handleStartGame}
-            className="w-full mt-1 bg-primary hover:bg-primary-fixed-variant text-on-primary font-title-sm text-xs sm:text-sm md:text-base py-2 sm:py-2.5 rounded-xl shadow-[0_3px_0_0_rgba(0,23,75,1)] active:shadow-none active:translate-y-[3px] hover:scale-[1.01] active:scale-95 transition-all flex justify-center items-center gap-1 cursor-pointer select-none"
+            style={{ animationDelay: '300ms' }}
+            className="w-full mt-1 bg-primary hover:bg-primary-fixed-variant text-on-primary font-title-sm text-xs sm:text-sm md:text-base py-2 sm:py-2.5 rounded-xl shadow-[0_3px_0_0_rgba(0,23,75,1)] active:shadow-none active:translate-y-[3px] hover:scale-[1.01] active:scale-95 transition-all flex justify-center items-center gap-1 cursor-pointer select-none animate-hero-intro"
           >
             <span className="material-symbols-outlined text-[18px] sm:text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
             <span>Mulai Permainan</span>
@@ -345,7 +367,10 @@ export default function GamePage() {
         <>
       
       {/* Game Status Bar */}
-      <div className="flex justify-between items-center bg-surface-container-low rounded-xl p-md shadow-sm mb-lg">
+      <div 
+        style={{ animationDelay: '50ms' }}
+        className="flex justify-between items-center bg-surface-container-low rounded-xl p-md shadow-sm mb-lg animate-hero-intro"
+      >
         <div className="flex items-center gap-sm">
           <div className={`rounded-full p-2 flex items-center justify-center ${timeLeft <= 10 ? 'bg-error text-on-error animate-pulse' : 'bg-primary text-on-primary'}`}>
             <span className="material-symbols-outlined">timer</span>
@@ -375,7 +400,10 @@ export default function GamePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
         
         {/* Left Column: Word Chain History */}
-        <div className="md:col-span-1 bg-surface rounded-xl shadow-sm border border-outline-variant p-md flex flex-col h-[260px] md:h-[430px]">
+        <div 
+          style={{ animationDelay: '150ms' }}
+          className="md:col-span-1 bg-surface rounded-xl shadow-sm border border-outline-variant p-md flex flex-col h-[260px] md:h-[430px] animate-bento-card"
+        >
           <h2 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-2">
             <span className="material-symbols-outlined text-primary">history</span> Word Chain
           </h2>
@@ -388,7 +416,7 @@ export default function GamePage() {
               // Approximate points for visual history
               const pts = w.length * 10 + 20; 
               return (
-                <div key={i}>
+                <div key={i} className={isLast ? "animate-in fade-in slide-in-from-top-3 duration-300" : ""}>
                   <div 
                     className={`px-4 py-2 rounded-lg flex justify-between items-center ${
                       isLast 
@@ -412,7 +440,10 @@ export default function GamePage() {
         </div>
 
         {/* Right Column: Active Play Area */}
-        <div className="md:col-span-2 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant p-md md:p-lg flex flex-col justify-center relative overflow-hidden h-[300px] md:h-[430px]">
+        <div 
+          style={{ animationDelay: '250ms' }}
+          className="md:col-span-2 bg-surface-container-lowest rounded-xl shadow-lg border border-outline-variant p-md md:p-lg flex flex-col justify-center relative overflow-hidden h-[300px] md:h-[430px] animate-bento-card"
+        >
           
           {/* Feedback Toast */}
           {showToast && !gameOver && (
@@ -431,7 +462,7 @@ export default function GamePage() {
 
           {!gameOver ? (
             <>
-              <div className="text-center my-md md:my-lg">
+              <div key={words.length} className="text-center my-md md:my-lg animate-in fade-in zoom-in-95 duration-300">
                 <div className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider mb-sm">Last Word</div>
                 {renderHighlightedLastWord()}
                 <div className="mt-sm font-body-md text-body-md text-outline">
@@ -444,23 +475,49 @@ export default function GamePage() {
               </div>
 
               <form onSubmit={handleWordSubmit} className="w-full">
-                <div className="relative">
-                  {requiredStart && (
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <span className="font-headline-lg-mobile text-headline-lg-mobile text-secondary-container font-bold">{requiredStart}</span>
-                    </div>
-                  )}
+                <div 
+                  onClick={() => inputRef.current?.focus()}
+                  className={`w-full relative border-2 rounded-xl py-md px-4 font-headline-lg-mobile text-headline-lg-mobile flex items-center bg-surface cursor-text transition-all shadow-sm ${
+                    isShaking 
+                      ? 'shake-animation border-error ring-4 ring-error-container/20' 
+                      : isPopping 
+                        ? 'success-pop border-success' 
+                        : isFocused
+                          ? 'border-primary ring-4 ring-primary-container/20'
+                          : 'border-primary-fixed hover:border-primary/60'
+                  }`}
+                >
+                  {/* Invisible real input for capturing keypress/input events */}
                   <input 
                     ref={inputRef}
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value.toLowerCase())}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
                     disabled={isLoading}
                     autoComplete="off"
                     spellCheck="false"
-                    placeholder={lastWord ? "lanjutan..." : "ketik kata..."}
-                    className={`w-full ${requiredStart ? 'pl-14' : 'pl-4'} pr-4 py-md bg-surface border-2 border-primary-fixed rounded-xl font-headline-lg-mobile text-headline-lg-mobile text-on-surface focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary-container/20 transition-all shadow-sm`}
+                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-text"
                   />
+
+                  {/* Gorgeous Seamless Typographic Overlay */}
+                  <div className="flex items-center w-full select-none pointer-events-none uppercase font-bold tracking-wide">
+                    {requiredStart && (
+                      <span className="text-secondary-container">{requiredStart}</span>
+                    )}
+                    
+                    {inputValue.trim() ? (
+                      <span className="text-on-surface">{displayedSuffix}</span>
+                    ) : (
+                      <span className="text-outline-variant italic font-normal text-headline-md pl-1">
+                        {lastWord ? "lanjutan..." : "ketik kata..."}
+                      </span>
+                    )}
+
+                    {/* Custom animated blinking caret cursor */}
+                    {isFocused && <span className="custom-caret" />}
+                  </div>
                 </div>
                 
                 <button 
@@ -480,7 +537,7 @@ export default function GamePage() {
               </form>
             </>
           ) : (
-            <div className="text-center space-y-6 my-auto">
+            <div className="text-center space-y-6 my-auto animate-spring-card">
               <div className="text-error mb-2">
                 <span className="material-symbols-outlined text-[64px]">cancel</span>
               </div>
@@ -505,7 +562,7 @@ export default function GamePage() {
       {/* Confirmation Modal */}
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-md">
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl w-[90vw] sm:w-[450px] p-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-md text-center items-center">
+          <div className="bg-surface-container-lowest border border-outline-variant rounded-2xl w-[90vw] sm:w-[450px] p-lg shadow-2xl relative flex flex-col gap-md text-center items-center animate-spring-card">
             <div className="w-16 h-16 bg-error-container text-on-error-container rounded-full flex items-center justify-center mb-sm shadow-inner border border-error/15">
               <span className="material-symbols-outlined text-[36px] text-error">warning</span>
             </div>
