@@ -1,6 +1,39 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from 'react';
+import { supabase } from '../config/supabase';
 
 export default function HomePage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState({ level: 1, words: 0, highScore: 0, gamesPlayed: 0 });
+
+  useEffect(() => {
+    if (user) {
+      const fetchStats = async () => {
+        const { data, error } = await supabase
+          .from('game_sessions')
+          .select('score, word_count')
+          .eq('user_id', user.id);
+          
+        if (!error && data) {
+          const totalWords = data.reduce((sum, session) => sum + (session.word_count || 0), 0);
+          const maxScore = data.reduce((max, session) => Math.max(max, session.score || 0), 0);
+          const gamesCount = data.length;
+          
+          const currentLevel = Math.floor(totalWords / 20) + 1;
+          setStats({ 
+            level: currentLevel, 
+            words: totalWords, 
+            highScore: maxScore, 
+            gamesPlayed: gamesCount 
+          });
+        }
+      };
+      fetchStats();
+    }
+  }, [user]);
+
   return (
     <>
       {/* Hero Section */}
@@ -13,14 +46,20 @@ export default function HomePage() {
             Tantang dirimu dan teman-teman dalam permainan edukatif yang seru. Perkaya perbendaharaan katamu satu demi satu langkah.
           </p>
           <div className="flex flex-col sm:flex-row gap-sm justify-center md:justify-start mt-sm">
-            <Link to="/game" className="bg-primary text-on-primary font-label-md text-label-md px-lg py-sm rounded-lg border-b-2 border-[#003ea8] hover:bg-[#003ea8] transition-colors shadow-sm flex items-center justify-center gap-2">
+            <Link 
+              to="/game" 
+              className="bg-primary text-on-primary font-label-md text-label-md px-lg py-3 rounded-xl border-b-[4px] border-[#003ea8] hover:bg-[#003ea8] hover:scale-[1.04] hover:shadow-[0_8px_20px_rgba(0,74,198,0.25)] active:border-b-0 active:translate-y-[4px] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md select-none"
+            >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
               Play Now
             </Link>
-            <button className="bg-secondary-container text-on-secondary-container font-label-md text-label-md px-lg py-sm rounded-lg border-b-2 border-[#d98b0b] hover:bg-[#fea619]/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+            <Link 
+              to="/dictionary" 
+              className="bg-secondary-container text-on-secondary-container font-label-md text-label-md px-lg py-3 rounded-xl border-b-[4px] border-[#d98b0b] hover:bg-[#fea619]/90 hover:scale-[1.04] hover:shadow-[0_8px_20px_rgba(254,166,25,0.25)] active:border-b-0 active:translate-y-[4px] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md select-none"
+            >
               <span className="material-symbols-outlined">menu_book</span>
               Open Dictionary
-            </button>
+            </Link>
           </div>
         </div>
         
@@ -52,20 +91,44 @@ export default function HomePage() {
               <span className="material-symbols-outlined">analytics</span>
               <h3 className="font-title-md text-title-md">Statistik Pemain</h3>
             </div>
-            <div className="bg-surface-container-low rounded-lg p-sm flex justify-between items-center mt-2">
-              <span className="font-body-md text-body-md text-on-surface-variant">Level Saat Ini</span>
-              <span className="font-headline-lg-mobile text-headline-lg-mobile text-primary">12</span>
-            </div>
-            <div className="bg-surface-container-low rounded-lg p-sm flex justify-between items-center">
-              <span className="font-body-md text-body-md text-on-surface-variant">Kata Ditemukan</span>
-              <span className="font-headline-lg-mobile text-headline-lg-mobile text-tertiary">342</span>
-            </div>
-            <div className="mt-auto pt-sm">
-              <div className="w-full bg-surface-variant rounded-full h-2.5">
-                <div className="bg-gradient-to-r from-primary to-surface-tint h-2.5 rounded-full" style={{ width: '70%' }}></div>
+            
+            {!user ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-sm gap-3">
+                <span className="material-symbols-outlined text-[48px] text-surface-variant">account_circle</span>
+                <p className="font-body-md text-body-md text-on-surface-variant">Buat akun atau login terlebih dahulu untuk menyimpan progres Anda.</p>
+                <button onClick={() => navigate('/auth')} className="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md hover:bg-primary/90 transition-colors w-full mt-2">
+                  Login / Daftar
+                </button>
               </div>
-              <p className="font-label-sm text-label-sm text-on-surface-variant text-right mt-1">70% menuju Level 13</p>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div className="bg-surface-container-low rounded-lg p-xs flex flex-col items-center justify-center text-center">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Level</span>
+                    <span className="font-headline-lg-mobile text-[22px] text-primary">{stats.level}</span>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg p-xs flex flex-col items-center justify-center text-center">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Kata</span>
+                    <span className="font-headline-lg-mobile text-[22px] text-tertiary">{stats.words}</span>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg p-xs flex flex-col items-center justify-center text-center">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Skor Terbaik</span>
+                    <span className="font-headline-lg-mobile text-[22px] text-secondary-container">{stats.highScore}</span>
+                  </div>
+                  <div className="bg-surface-container-low rounded-lg p-xs flex flex-col items-center justify-center text-center">
+                    <span className="font-label-sm text-label-sm text-on-surface-variant">Main</span>
+                    <span className="font-headline-lg-mobile text-[22px] text-outline">{stats.gamesPlayed}</span>
+                  </div>
+                </div>
+                
+                <div className="mt-auto pt-sm">
+                  <div className="w-full bg-surface-variant rounded-full h-2.5">
+                    <div className="bg-gradient-to-r from-primary to-surface-tint h-2.5 rounded-full" style={{ width: `${(stats.words % 20) * 5}%` }}></div>
+                  </div>
+                  <p className="font-label-sm text-label-sm text-on-surface-variant text-right mt-1">{(stats.words % 20) * 5}% menuju Level {stats.level + 1}</p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* How to Play 1 */}

@@ -43,20 +43,53 @@ ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.game_words ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leaderboard ENABLE ROW LEVEL SECURITY;
 
--- Basic Policies (Update these for real production usage)
+-- Basic Policies
 CREATE POLICY "Public profiles are viewable by everyone." ON public.users FOR SELECT USING (true);
-CREATE POLICY "Leaderboard is viewable by everyone." ON public.leaderboard FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own profile." ON public.users FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update their own profile." ON public.users FOR UPDATE USING (auth.uid() = id);
 
--- Dictionary Table (Hybrid Strategy)
+CREATE POLICY "Users can view their own game sessions." ON public.game_sessions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own game sessions." ON public.game_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Leaderboard is viewable by everyone." ON public.leaderboard FOR SELECT USING (true);
+CREATE POLICY "Users can insert their own leaderboard entries." ON public.leaderboard FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 CREATE TABLE public.dictionary (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     word VARCHAR(100) UNIQUE NOT NULL,
     word_type VARCHAR(50),
     meaning TEXT NOT NULL,
     example_usage TEXT NOT NULL,
+    search_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- Index for fast lookups during gameplay
 CREATE INDEX idx_dictionary_word ON public.dictionary(word);
+
+-- Trigger to automatically sync auth.users with public.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.users (id, username, email)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'username', split_part(new.email, '@', 1)),
+    new.email
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger the function every time a user is created
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Sync existing users if any
+INSERT INTO public.users (id, username, email)
+SELECT id, COALESCE(raw_user_meta_data->>'username', split_part(email, '@', 1)), email
+FROM auth.users
+ON CONFLICT (id) DO NOTHING;
 
