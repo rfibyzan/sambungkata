@@ -32,16 +32,17 @@ export default function DictionaryPage() {
     fetchTrending();
   }, []);
 
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent, overrideQuery?: string) => {
     if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const query = (overrideQuery || searchQuery).trim();
+    if (!query) return;
 
     setLoading(true);
     setError('');
     setResult(null);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/dictionary/search?q=${encodeURIComponent(searchQuery.trim())}`);
+      const response = await fetch(`http://localhost:5000/api/dictionary/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -58,7 +59,7 @@ export default function DictionaryPage() {
   };
 
   return (
-    <div className="w-full max-w-max-width-content mx-auto px-margin-mobile md:px-md py-lg flex flex-col gap-lg mb-xl md:mb-0">
+    <div className="w-full max-w-max-width-content mx-auto px-margin-mobile md:px-md py-md md:py-lg flex flex-col gap-lg">
       {/* Search Section */}
       <section className="flex flex-col items-center gap-md w-full max-w-2xl mx-auto mt-lg">
         <h1 className="font-display-lg text-display-lg text-center text-on-surface">Kamus Kata</h1>
@@ -163,13 +164,9 @@ export default function DictionaryPage() {
                 key={t.id} 
                 onClick={() => {
                   setSearchQuery(t.word);
-                  // We simulate a form submit to fetch it
-                  setTimeout(() => {
-                    const fakeEvent = new Event('submit', { cancelable: true }) as unknown as React.FormEvent;
-                    handleSearch(fakeEvent);
-                  }, 0);
+                  handleSearch(undefined, t.word);
                 }}
-                className="bg-surface-container-lowest p-sm rounded-lg border border-surface-variant hover:border-primary hover:shadow-md transition-all flex flex-col justify-between h-24 text-left"
+                className="bg-surface-container-lowest p-sm rounded-lg border border-surface-variant hover:border-primary hover:shadow-md transition-all flex flex-col justify-between h-24 text-left cursor-pointer"
               >
                 <span className="font-label-md text-label-md text-on-surface-variant capitalize">{t.word_type || 'Kata'}</span>
                 <span className="font-headline-lg-mobile text-headline-lg-mobile text-on-surface capitalize">{t.word}</span>

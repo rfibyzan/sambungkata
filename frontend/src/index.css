@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,600;0,700;1,600;1,700&family=Inter:wght@400;500;600&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 
 @import "tailwindcss";
@@ -111,4 +111,40 @@
   .material-symbols-outlined {
     font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   }
+}
+
+/* Premium Brand Text Interactive Effects */
+.brand-title-interactive {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.05em;
+  font-size: 26px;
+  display: inline-block;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s ease;
+  
+  /* Sweeping metal shimmer background */
+  background: linear-gradient(
+    120deg, 
+    #004ac6 0%, 
+    #004ac6 35%, 
+    #a2c4ff 45%, 
+    #ffffff 50%, 
+    #a2c4ff 55%, 
+    #004ac6 65%, 
+    #004ac6 100%
+  );
+  background-size: 280% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-title-interactive:hover {
+  transform: scale(1.08) translateY(-2px) rotate(-1deg);
+  background-position: 0 0;
+  transition: background-position 0.9s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.4s ease;
+  filter: drop-shadow(0 6px 12px rgba(0, 74, 198, 0.28));
 }
