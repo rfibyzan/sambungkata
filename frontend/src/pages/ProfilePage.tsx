@@ -296,11 +296,11 @@ export default function ProfilePage() {
     setLoadingEmail(true);
     setMsg(null);
     try {
-      // 1. Update Auth Email
+      // 1. Update Auth Email (Triggers Supabase secure double confirmation flow)
       const { error: authError } = await supabase.auth.updateUser({ email });
       if (authError) throw authError;
 
-      // 2. Force Sync to public users profile table instantly
+      // 2. Sync to public users profile table
       const { error: dbError } = await supabase
         .from('users')
         .update({ email })
@@ -308,7 +308,10 @@ export default function ProfilePage() {
       if (dbError) throw dbError;
 
       await refreshProfile();
-      setMsg({ type: 'success', text: 'Email berhasil diperbarui secara instan!' });
+      setMsg({ 
+        type: 'success', 
+        text: 'Permintaan perubahan email berhasil dikirim! Demi keamanan akun, Supabase memerlukan konfirmasi email ganda. Silakan klik tautan konfirmasi yang dikirimkan ke email LAMA dan email BARU Anda untuk mengaktifkan login dengan email baru.' 
+      });
     } catch (err: any) {
       setMsg({ type: 'error', text: err.message || 'Gagal memperbarui email.' });
     } finally {

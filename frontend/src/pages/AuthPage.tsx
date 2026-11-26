@@ -64,7 +64,11 @@ export default function AuthPage() {
         navigate('/');
       }
     } catch (error: any) {
-      setErrorMsg(error.message || 'Terjadi kesalahan saat autentikasi.');
+      let msg = error.message || 'Terjadi kesalahan saat autentikasi.';
+      if (msg === 'Invalid login credentials') {
+        msg = 'Email atau kata sandi salah. (Catatan: Jika Anda baru saja mengubah alamat email di pengaturan profil, pastikan Anda sudah mengeklik tautan konfirmasi yang dikirimkan ke kotak masuk email LAMA dan email BARU Anda agar pembaruan diaktifkan oleh Supabase).';
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
